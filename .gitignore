@@ -1,0 +1,5 @@
+# Ignoring Password 
+db_password.py
+
+# Ignoring my venv 
+myvenv/ 
