@@ -47,8 +47,8 @@ class ProductCatalog(db.Model):
 class CustomerSchema(ma.Schema):
     id = fields.Integer(dump_only=True)
     name = fields.String(required=True)
-    email = fields.String
-    phone = fields.String
+    email = fields.String()
+    phone = fields.String()
 
     class Meta:
         fields = ('id', 'name', 'email', 'phone')
@@ -75,7 +75,6 @@ def get_customers():
     return jsonify(customers_schema.dump(customers)), 200
 
 # Run Program --------------------------------------------------------------
-
 with app.app_context():
     db.create_all()
 
