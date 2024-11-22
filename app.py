@@ -74,9 +74,50 @@ def get_customers():
     customers = Customer.query.all()
     return jsonify(customers_schema.dump(customers)), 200
 
-# Run Program --------------------------------------------------------------
-with app.app_context():
-    db.create_all()
+@app.route('/customers/<int:id>', methods=['GET'])
+def get_customer_by_id(id):
+    customer = Customer.query.filter_by(id=id).first()
+    if not customer:
+        return jsonify({'Error': f'Customer with ID {id} not found.'}), 404
+    return jsonify(customer_schema.dump(customer)), 200
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/customers/<int:id>', methods=['PUT'])
+def update_customer(id):
+    customer = Customer.query.get_or_404(id)
+    try:
+        customer_data = customer_schema.load(request.json)
+    except ValidationError as Err:
+        return jsonify(Err.messages), 400
+    
+    customer.name = customer_data['name']
+    customer.email = customer_data['email']
+    customer.phone = customer_data['phone']
+    db.session.commit()
+    return jsonify({'Message': 'Customer details updated successfully.'}), 200
+
+@app.route('/customers/<int:id>', methods=['DELETE'])
+def delete_customer(id):
+    customber = Customer.query.get_or_404(id)
+    db.session.delete(customber)
+    db.session.commit()
+    return jsonify({'Message': f'Member with ID {id} was deleted successfully.'}), 200
+
+# Customer Account Routes -------------------------------------------------------------------
+
+'''
+
+Need to Add Customer Account Routes Next
+
+'''
+
+
+
+
+
+
+# Run Program --------------------------------------------------------------
+# with app.app_context():
+#     db.create_all()
+
+# if __name__ == '__main__':
+#     app.run(debug=True)

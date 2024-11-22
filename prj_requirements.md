@@ -22,6 +22,8 @@ To successfully build our e-commerce application and achieve the learning object
 - <b>Delete Customer:</b> Implement an endpoint to delete a customer from the system based on their ID.
 <br>
 
+<h1>This is where I left off</h1>
+
 - <b>Create CustomerAccount:</b> Develop an endpoint to create a new customer account. This should include fields for a unique username and a secure password.
 <br>
 
