@@ -53,8 +53,20 @@ class CustomerSchema(ma.Schema):
     class Meta:
         fields = ('id', 'name', 'email', 'phone')
 
+class CustomerAccountSchema(ma.Schema):
+    id = fields.Integer(dump_only=True)
+    username = fields.String(required=True)
+    password = fields.String()
+    customer_id = fields.Integer()
+
+    class Meta:
+        fields = ('id', 'username', 'password', 'customer_id')
+
 customer_schema = CustomerSchema()
 customers_schema = CustomerSchema(many=True)
+
+account_schema = CustomerAccountSchema()
+accounts_schema = CustomerAccountSchema(many=True)
 
 # Customer Routes -------------------------------------------------------------------
 @app.route('/customers', methods=['POST'])
@@ -103,10 +115,59 @@ def delete_customer(id):
     return jsonify({'Message': f'Member with ID {id} was deleted successfully.'}), 200
 
 # Customer Account Routes -------------------------------------------------------------------
+@app.route('/customer_accounts', methods=['POST'])
+def add_account():
+    try:
+        account_data = account_schema.load(request.json)
+    except ValidationError as Err:
+        return jsonify(Err.messages), 400
+    
+    new_account = CustomerAccount(
+        username=account_data['username'], 
+        password=account_data['password'], 
+        customer_id=account_data['customer_id']
+        )
+    db.session.add(new_account)
+    db.session.commit()
+    return jsonify({'Message': 'New account has been added successfully.'}), 201
+
+@app.route('/customer_accounts', methods=['GET'])
+def get_accounts():
+    accounts = CustomerAccount.query.all()
+    return jsonify(accounts_schema.dump(accounts)), 200
+
+@app.route('/customer_accounts/<int:id>', methods=['GET'])
+def get_account_by_id(id):
+    account = CustomerAccount.query.filter_by(id=id).first()
+    if not account:
+        return jsonify({'Error': f'Account with ID {id} not found.'}), 404
+    return jsonify(account_schema.dump(account)), 200
+
+@app.route('/customer_accounts/<int:id>', methods=['PUT'])
+def update_account(id):
+    account = CustomerAccount.query.get_or_404(id)
+    try:
+        account_data = account_schema.load(request.json)
+    except ValidationError as Err:
+        return jsonify(Err.messages), 400
+    
+    account.username = account_data['username']
+    account.password = account_data['password']
+    account.customer_id = account_data['customer_id']
+    db.session.commit()
+    return jsonify({'Message': 'Customer details updated successfully.'}), 200
+
+@app.route('/customer_accounts/<int:id>', methods=['DELETE'])
+def delete_account(id):
+    account = CustomerAccount.query.get_or_404(id)
+    db.session.delete(account)
+    db.session.commit()
+    return jsonify({'Message': f'Account with ID {id} was deleted successfully.'}), 200
+
 
 '''
 
-Need to Add Customer Account Routes Next
+Need to Add Product Catalog Routes Next
 
 '''
 
