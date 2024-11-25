@@ -32,16 +32,21 @@ class CustomerAccount(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'))
     customer = db.relationship('Customer', backref='customer_account', uselist=False)
 
-order_product_association = db.Table('order_product_association',
-                         db.Column('order_id', db.Integer, db.ForeignKey('orders.id'), primary_key = True),
-                         db.Column('product_id', db.Integer, db.ForeignKey('product_catalog.id'), primary_key = True))
+order_product_association = db.Table(
+    'order_product_association',
+    db.Column('order_id', db.Integer, db.ForeignKey('orders.id', ondelete='CASCADE'), primary_key = True),
+    db.Column('product_id', db.Integer, db.ForeignKey('product_catalog.id', ondelete='CASCADE'), primary_key = True))
 
 class ProductCatalog(db.Model):
     __tablename__ = 'product_catalog'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     price = db.Column(db.Float, nullable=False)
-    orders = db.relationship('Order', secondary=order_product_association, backref=db.backref('product_catalog'))
+    inventory = db.Column(db.Integer, nullable=False, default=0)
+    orders = db.relationship(
+        'Order', 
+        secondary=order_product_association, 
+        backref=db.backref('product_catalog'))
 
 # Schemas -------------------------------------------------------------------
 class CustomerSchema(ma.Schema):
@@ -62,11 +67,23 @@ class CustomerAccountSchema(ma.Schema):
     class Meta:
         fields = ('id', 'username', 'password', 'customer_id')
 
+class ProductCatalogSchema(ma.Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String(required=True)
+    price = fields.Float(required=True)
+    inventory = fields.Integer(required=True)
+
+    class Meta:
+        fields = ('id', 'name', 'price', 'inventory')
+
 customer_schema = CustomerSchema()
 customers_schema = CustomerSchema(many=True)
 
 account_schema = CustomerAccountSchema()
 accounts_schema = CustomerAccountSchema(many=True)
+
+product_schema = ProductCatalogSchema()
+products_schema = ProductCatalogSchema(many=True)
 
 # Customer Routes -------------------------------------------------------------------
 @app.route('/customers', methods=['POST'])
@@ -109,8 +126,8 @@ def update_customer(id):
 
 @app.route('/customers/<int:id>', methods=['DELETE'])
 def delete_customer(id):
-    customber = Customer.query.get_or_404(id)
-    db.session.delete(customber)
+    customer = Customer.query.get_or_404(id)
+    db.session.delete(customer)
     db.session.commit()
     return jsonify({'Message': f'Member with ID {id} was deleted successfully.'}), 200
 
@@ -164,10 +181,60 @@ def delete_account(id):
     db.session.commit()
     return jsonify({'Message': f'Account with ID {id} was deleted successfully.'}), 200
 
+# Product Routes ---------------------------------------------------------------------------
+@app.route('/product_catalog', methods=['POST'])
+def add_product():
+    try:
+        product_data = product_schema.load(request.json)
+    except ValidationError as Err:
+        return jsonify(Err.messages), 400
+    
+    new_product = ProductCatalog(
+        name=product_data['name'], 
+        price=product_data['price'],
+        inventory=product_data['inventory']
+        )
+    db.session.add(new_product)
+    db.session.commit()
+    return jsonify({'Message': 'New product has been added successfully.'}), 201
+
+@app.route('/product_catalog', methods=['GET'])
+def get_products():
+    products = ProductCatalog.query.all()
+    return jsonify(products_schema.dump(products)), 200
+
+@app.route('/product_catalog/<int:id>', methods=['GET'])
+def get_product_by_id(id):
+    product = ProductCatalog.query.filter_by(id=id).first()
+    if not product:
+        return jsonify({'Error': f'Product with ID {id} not found.'}), 404
+    return jsonify(product_schema.dump(product)), 200
+
+@app.route('/product_catalog/<int:id>', methods=['PUT'])
+def update_product(id):
+    product = ProductCatalog.query.get_or_404(id)
+    try:
+        product_data = product_schema.load(request.json)
+    except ValidationError as Err:
+        return jsonify(Err.messages), 400
+    
+    product.name = product_data['name']
+    product.price = product_data['price']
+    product.inventory = product_data['inventory']
+    db.session.commit()
+    return jsonify({'Message': 'Product details updated successfully.'}), 200
+
+@app.route('/product_catalog/<int:id>', methods=['DELETE'])
+def delete_product(id):
+    product = ProductCatalog.query.get_or_404(id)
+    db.session.delete(product)
+    db.session.commit()
+    return jsonify({'Message': f'Product with ID {id} was deleted successfully.'}), 200
+
 
 '''
 
-Need to Add Product Catalog Routes Next
+Need to Add Order Processing Routes Next
 
 '''
 
@@ -177,8 +244,8 @@ Need to Add Product Catalog Routes Next
 
 
 # Run Program --------------------------------------------------------------
-# with app.app_context():
-#     db.create_all()
+with app.app_context():
+    db.create_all()
 
-# if __name__ == '__main__':
-#     app.run(debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)

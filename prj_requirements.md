@@ -35,8 +35,6 @@ To successfully build our e-commerce application and achieve the learning object
 
 <h3>2. Product Catalog:</h3>
 
-<h1>This is where I left off</h1>
-
 - <b>Create the CRUD</b> (Create, Read, Update, Delete) endpoints for managing Products:
 <br>
 
@@ -61,6 +59,8 @@ To successfully build our e-commerce application and achieve the learning object
 - <b>Restock Products When Low (Bonus):</b> Develop an endpoint that monitors product stock levels and triggers restocking when they fall below a specified threshold. Ensure that stock replenishment is efficient and timely.
 
 <h3>3. Order Processing:</h3>
+
+<h1>This is where I left off</h1>
 
 - <b>Develop comprehensive Orders Management:</b> functionality to efficiently handle customer orders, ensuring that customers can place, track, and manage their orders seamlessly.
 <br>
