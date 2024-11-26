@@ -24,6 +24,7 @@
   - <b>update_customer()</b> - PUT
   - <b>delete_customer()</b> - DELETE
 <br>
+
 - <b>Customer Account</b>
   - <b>add_account()</b> - POST
   - <b>get_accounts()</b> - GET
@@ -31,6 +32,7 @@
   - <b>update_account()</b> - PUT
   - <b>delete_account()</b> - DELETE
 <br>
+
 - <b>Product</b>
   - <b>add_product()</b> - POST
   - <b>get_products()</b> - GET
@@ -38,6 +40,7 @@
   - <b>update_products()</b> - PUT
   - <b>delete_products()</b> - DELETE
 <br>
+
 - <b>Order</b>
   - <b>add_order</b> - POST
   - <b>get_orders</b> - GET
