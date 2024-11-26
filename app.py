@@ -94,7 +94,7 @@ product_schema = ProductCatalogSchema()
 products_schema = ProductCatalogSchema(many=True)
 
 order_schema = OrderSchema()
-order_schema = OrderSchema(many=True)
+orders_schema = OrderSchema(many=True)
 
 # Customer Routes ----------------------------------------------------------------Customer Routes
 @app.route('/customers', methods=['POST'])
