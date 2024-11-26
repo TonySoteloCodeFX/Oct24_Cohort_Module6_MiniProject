@@ -9,7 +9,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+mysqlconnector://root:{my_passwo
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
-# Models ---------------------------------------------------------------------
+# Models --------------------------------------------------------------------- Models
 class Customer(db.Model):
     __tablename__ = 'customers'
     id = db.Column(db.Integer, primary_key=True)
@@ -48,7 +48,7 @@ class ProductCatalog(db.Model):
         secondary=order_product_association, 
         backref=db.backref('product_catalog'))
 
-# Schemas -------------------------------------------------------------------
+# Schemas ----------------------------------------------------------------------------- Schemas
 class CustomerSchema(ma.Schema):
     id = fields.Integer(dump_only=True)
     name = fields.String(required=True)
@@ -76,6 +76,14 @@ class ProductCatalogSchema(ma.Schema):
     class Meta:
         fields = ('id', 'name', 'price', 'inventory')
 
+class OrderSchema(ma.Schema):
+    id = fields.Integer(dump_only=True)
+    date = fields.Date(required=True)
+    customer_id = fields.Integer(required=True)
+
+    class Meta:
+        fields = ('id', 'date', 'customer_id')
+
 customer_schema = CustomerSchema()
 customers_schema = CustomerSchema(many=True)
 
@@ -85,7 +93,10 @@ accounts_schema = CustomerAccountSchema(many=True)
 product_schema = ProductCatalogSchema()
 products_schema = ProductCatalogSchema(many=True)
 
-# Customer Routes -------------------------------------------------------------------
+order_schema = OrderSchema()
+order_schema = OrderSchema(many=True)
+
+# Customer Routes ----------------------------------------------------------------Customer Routes
 @app.route('/customers', methods=['POST'])
 def add_customer():
     try:
@@ -95,8 +106,25 @@ def add_customer():
     
     new_customer = Customer(name=customer_data['name'], email=customer_data['email'], phone=customer_data['phone'])
     db.session.add(new_customer)
+    db.session.flush()
+
+    name_split = new_customer.name.split()
+    first_initial = name_split[0][0] if len(name_split) > 0 else ""
+    second_initial = name_split[1][0] if len(name_split) > 1 else ""
+    first_name = name_split[0]
+
+    username = new_customer.name.replace(" ", "").lower()
+    username = f'{first_name.lower()}{second_initial.lower()}'
+    password = f'{first_initial}{second_initial}{new_customer.id}'
+    
+    new_account = CustomerAccount(
+        username=username,
+        password=password,
+        customer_id=new_customer.id
+        )
+    db.session.add(new_account)
     db.session.commit()
-    return jsonify({'Message': 'New customer has been added successfully.'}), 201
+    return jsonify({'Message': 'New customer and account have been added successfully.'}), 201
 
 @app.route('/customers', methods=['GET'])
 def get_customers():
@@ -131,7 +159,7 @@ def delete_customer(id):
     db.session.commit()
     return jsonify({'Message': f'Member with ID {id} was deleted successfully.'}), 200
 
-# Customer Account Routes -------------------------------------------------------------------
+# Customer Account Routes ---------------------------------------------------------Customer Account Routes
 @app.route('/customer_accounts', methods=['POST'])
 def add_account():
     try:
@@ -181,7 +209,7 @@ def delete_account(id):
     db.session.commit()
     return jsonify({'Message': f'Account with ID {id} was deleted successfully.'}), 200
 
-# Product Routes ---------------------------------------------------------------------------
+# Product Routes ----------------------------------------------------------------------Product Routes
 @app.route('/product_catalog', methods=['POST'])
 def add_product():
     try:
@@ -189,14 +217,20 @@ def add_product():
     except ValidationError as Err:
         return jsonify(Err.messages), 400
     
-    new_product = ProductCatalog(
-        name=product_data['name'], 
-        price=product_data['price'],
-        inventory=product_data['inventory']
-        )
-    db.session.add(new_product)
-    db.session.commit()
-    return jsonify({'Message': 'New product has been added successfully.'}), 201
+    existing_product = ProductCatalog.query.filter_by(name=product_data['name']).first()
+    if existing_product:
+        existing_product.inventory += product_data['inventory']
+        db.session.commit()
+        return jsonify({'Message': f'Product "{existing_product.name}" inventory updated successfully.'}), 200
+    else:
+        new_product = ProductCatalog(
+            name=product_data['name'], 
+            price=product_data['price'],
+            inventory=product_data['inventory']
+            )
+        db.session.add(new_product)
+        db.session.commit()
+        return jsonify({'Message': 'New product has been added successfully.'}), 201
 
 @app.route('/product_catalog', methods=['GET'])
 def get_products():
@@ -231,16 +265,52 @@ def delete_product(id):
     db.session.commit()
     return jsonify({'Message': f'Product with ID {id} was deleted successfully.'}), 200
 
+# Order Routes -----------------------------------------------------------------------------Order Routes
+@app.route('/orders', methods=['POST'])
+def add_order():
+    try:
+        order_data = request.json
+        customer_id = order_data['customer_id']
+        products = order_data['products']
+    except KeyError as e:
+        return jsonify({'Error': f'Missing key: {str(e)}'}), 400
 
-'''
+    new_order = Order(date=order_data['date'], customer_id=customer_id)
+    db.session.add(new_order)
+    db.session.flush()
 
-Need to Add Order Processing Routes Next
+    for product_info in products:
+        product = ProductCatalog.query.get(product_info['product_id'])
+        if not product:
+            return jsonify({'Error': f'Product with ID {product_info["product_id"]} not found.'}), 404
 
-'''
+        if product.inventory < product_info['quantity']:
+            return jsonify({'Error': f'Insufficient inventory for product {product.name}.'}), 400
 
+        product.inventory -= product_info['quantity']
+        db.session.add(product)
 
+        db.session.execute(order_product_association.insert().values(
+            order_id=new_order.id,
+            product_id=product.id
+        ))
 
+    db.session.commit()
+    return jsonify({'Message': 'Order placed successfully.'}), 201
 
+@app.route('/orders', methods=['GET'])
+def get_orders():
+    orders = Order.query.all()
+    order_data = []
+    for order in orders:
+        order_info = {
+            'id': order.id,
+            'date': order.date,
+            'customer_id': order.customer_id,
+            'products': [{'name': p.name, 'quantity': p.inventory} for p in order.product_catalog]
+        }
+        order_data.append(order_info)
+    return jsonify(order_data), 200
 
 
 # Run Program --------------------------------------------------------------
